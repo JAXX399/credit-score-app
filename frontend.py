@@ -10,9 +10,20 @@ from sklearn.preprocessing import StandardScaler
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Credit Scoring AI", page_icon="💳", layout="wide")
 
-# --- CUSTOM CSS (Button Fixes & High Contrast Tabs) ---
+# --- CUSTOM CSS (Hide UI, Button Fixes & High Contrast Tabs) ---
 st.markdown("""
     <style>
+        /* --- HIDE STREAMLIT UI ELEMENTS --- */
+        #MainMenu {visibility: hidden;}
+        header {visibility: hidden;}
+        footer {visibility: hidden;}
+        [data-testid="stToolbar"] {visibility: hidden;} /* Hides the Star/Share buttons */
+        
+        /* Reduce top whitespace since header is gone */
+        .block-container {
+            padding-top: 1rem;
+        }
+
         /* 1. Fix Tab Visibility - Dark Blue Background with White Text */
         .stTabs [data-baseweb="tab-list"] {
             gap: 5px;
@@ -222,11 +233,11 @@ def show_home_page():
                 c1, c2, c3 = st.columns([1, 2, 1])
                 with c2:
                     if score >= 700:
-                        st.success(f"## Credit Score\n:  {score}")
+                        st.success(f"## ✅ APPROVED\n### Score: {score}")
                     elif score >= 600:
-                        st.warning(f"## Credit Score\n:  {score}")
+                        st.warning(f"## ⚠️ REVIEW\n### Score: {score}")
                     else:
-                        st.error(f"## Credit Score\n: {score}")
+                        st.error(f"## ❌ REJECTED\n### Score: {score}")
                     
                     st.progress(score/850)
                     st.caption(f"Default Probability: {prob*100:.1f}%")
@@ -251,7 +262,6 @@ def show_explainer_page():
     
     **Result:** The final score is the average of their votes, making it more accurate than any single method.
     """)
-    
     # --------------------------------------
 
     st.markdown("### Attribute Importance (All 20 Features)")
