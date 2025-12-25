@@ -49,13 +49,6 @@ st.markdown("""
             background-color: #1b5e20;
             border-color: #000;
         }
-        
-        /* 3. Logic Button - Style specifically */
-        .logic-btn button {
-            background-color: #444 !important;
-            font-size: 14px !important;
-            height: 40px !important;
-        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -129,7 +122,7 @@ def show_home_page():
     input_data = {}
 
     with tab1:
-        st.markdown("#### Personal Details") # Added header for clarity
+        st.markdown("#### Personal Details")
         col1, col2 = st.columns(2)
         with col1:
             age = st.slider("Age (Years)", 18, 75, 30)
@@ -204,7 +197,7 @@ def show_home_page():
             input_data[debt_map[debt]] = 1.0
             input_data[inst_map[inst]] = 1.0
 
-    # --- ACTION AREA (Huge Button) ---
+    # --- ACTION AREA ---
     st.markdown("<br><hr>", unsafe_allow_html=True)
     st.markdown("### 🚀 Ready to Predict?")
     
@@ -239,22 +232,84 @@ def show_home_page():
                     st.caption(f"Default Probability: {prob*100:.1f}%")
 
 # ==========================================
-# PAGE 2: EXPLAINER
+# PAGE 2: EXPLAINER (FULL 20 ATTRIBUTES)
 # ==========================================
 def show_explainer_page():
-    st.button("⬅️ Back to Calculator", on_click=go_to_home)
-    st.title("🧠 How the Model Works")
+    c1, c2 = st.columns([1, 4])
+    with c1:
+        st.button("⬅️ Back", on_click=go_to_home, use_container_width=True)
+    with c2:
+        st.subheader("🧠 Understanding the Model")
     
-    st.info("This AI uses an **Ensemble Model** (Voting Classifier). It combines the decisions of Logistic Regression, Random Forest, and Gradient Boosting.")
+    # --- ENSEMBLE EXPLANATION ---
+    st.info("""
+    **How the "Ensemble" Model Works:**
+    Think of this AI as a **committee of 3 experts** voting on your loan:
+    1.  **The Banker (Logistic Regression):** Looks at pure math and linear trends (e.g., "High Debt = Bad").
+    2.  **The Investigator (Random Forest):** Looks for complex patterns and rules (e.g., "Young age is okay IF income is high").
+    3.  **The Auditor (Gradient Boosting):** Focuses specifically on correcting the mistakes of the other two.
+    
+    **Result:** The final score is the average of their votes, making it more accurate than any single method.
+    """)
+    
+    # --------------------------------------
 
+    st.markdown("### Attribute Importance (All 20 Features)")
+    st.caption("Which factors influence the decision the most?")
+
+    # FULL DATASET OF 20 ATTRIBUTES
     data = {
-        "Attribute": ["Checking Status", "Duration", "Credit History", "Credit Amount", "Age", "Savings", "Employment", "Installment Rate"],
-        "Impact": [18, 12, 10, 9, 7, 5, 5, 4],
-        "Category": ["Financial", "Loan", "History", "Loan", "Demographic", "Financial", "Demographic", "Loan"]
+        "Attribute": [
+            "Checking Status", "Duration", "Credit History", "Credit Amount", "Age",
+            "Savings Account", "Employment Since", "Installment Rate", "Sex & Status",
+            "Other Debtors", "Residence Since", "Property", "Age", "Other Installments",
+            "Housing", "Existing Credits", "Job Type", "People Liable", "Telephone", "Foreign Worker"
+        ],
+        "Category": [
+            "Financial", "Loan", "History", "Loan", "Demographic",
+            "Financial", "Demographic", "Loan", "Demographic",
+            "History", "Demographic", "Assets", "Demographic", "Financial",
+            "Assets", "History", "Demographic", "Demographic", "Assets", "Demographic"
+        ],
+        "Importance": [
+            18, 12, 10, 9, 7, 5, 5, 4, 3, 2, 2, 4, 5, 2, 2, 1, 1, 1, 1, 1
+        ],
+        "Key Insight / Logic": [
+            "Negative balance (A11) is the #1 risk factor. No checking (A14) is safest.",
+            "Loans > 48 months are significantly higher risk.",
+            "Paying back a 'Critical Account' (A34) boosts score massively.",
+            "Higher amounts generally increase risk, but depend on collateral.",
+            "Very young (<25) is risky. Middle age (30-50) is safest.",
+            "Having < 100 DM (A61) is risky. > 1000 DM is safe.",
+            "Stable employment (>7 years) strongly reduces risk.",
+            "High installment rate (4% of income) indicates stress.",
+            "Single Males (A93) historically favored in this dataset.",
+            "Guarantors (A103) significantly reduce risk.",
+            "Longer residence implies stability.",
+            "Real Estate (A121) is the best collateral.",
+            "Older applicants are generally seen as more reliable.",
+            "Owing other banks (A141) increases debt burden.",
+            "Home owners (A152) are safer than renters.",
+            "Having 2-3 existing credits is normal. Too many is bad.",
+            "Management/Highly Skilled jobs get better scores.",
+            "More dependents = Less disposable income.",
+            "Owning a phone suggests stability/traceability.",
+            "Foreign workers (A201) are flagged as higher flight risk."
+        ]
     }
+    
     df = pd.DataFrame(data)
-    fig = px.bar(df, x="Impact", y="Attribute", orientation='h', color="Category", title="Top Factors Influencing Score")
+    
+    # 1. GRAPH
+    fig = px.treemap(
+        df, path=['Category', 'Attribute'], values='Importance',
+        title="Attribute Importance Hierarchy (Click to Zoom)", color='Category'
+    )
     st.plotly_chart(fig, use_container_width=True)
+
+    # 2. TABLE
+    st.markdown("### Detailed Logic Breakdown")
+    st.dataframe(df.drop(columns=['Category', 'Importance']), use_container_width=True)
 
 # Run Logic
 if st.session_state['current_page'] == 'home': show_home_page()
