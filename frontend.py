@@ -10,39 +10,51 @@ from sklearn.preprocessing import StandardScaler
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Credit Scoring AI", page_icon="💳", layout="wide")
 
-# --- CUSTOM CSS (MAKE BUTTON HUGE & GREEN) ---
+# --- CUSTOM CSS (Button Fixes & High Contrast Tabs) ---
 st.markdown("""
     <style>
-        /* Reduce top padding */
-        .block-container { padding-top: 1rem; padding-bottom: 5rem; }
-        
-        /* Style the Calculate Button */
-        div.stButton > button:first-child {
-            background-color: #2e7d32; /* Green */
+        /* 1. Fix Tab Visibility - Dark Blue Background with White Text */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 5px;
+            background-color: transparent;
+        }
+        .stTabs [data-baseweb="tab"] {
+            height: 50px;
+            white-space: pre-wrap;
+            background-color: #0e1117; /* Dark background */
+            color: #ffffff;            /* White text */
+            border-radius: 5px 5px 0px 0px;
+            border: 1px solid #333;
+            padding: 10px;
+        }
+        .stTabs [aria-selected="true"] {
+            background-color: #2e7d32; /* Green for selected tab */
             color: white;
-            font-size: 24px;
+            border-bottom: 2px solid #2e7d32;
+        }
+
+        /* 2. Calculate Button - Huge & Green */
+        div.stButton > button:first-child {
+            width: 100%;
+            background-color: #2e7d32;
+            color: white;
+            font-size: 20px;
             font-weight: bold;
-            height: 60px;
-            border-radius: 12px;
+            height: 55px;
+            border-radius: 8px;
             border: 2px solid #1b5e20;
             transition: all 0.3s ease;
         }
         div.stButton > button:first-child:hover {
             background-color: #1b5e20;
-            transform: scale(1.02);
+            border-color: #000;
         }
         
-        /* Style the Tabs */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 10px;
-        }
-        .stTabs [data-baseweb="tab"] {
-            height: 50px;
-            white-space: pre-wrap;
-            background-color: #f0f2f6;
-            border-radius: 5px;
-            padding-top: 10px;
-            padding-bottom: 10px;
+        /* 3. Logic Button - Style specifically */
+        .logic-btn button {
+            background-color: #444 !important;
+            font-size: 14px !important;
+            height: 40px !important;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -101,12 +113,13 @@ def go_to_home(): st.session_state['current_page'] = 'home'
 # PAGE 1: CALCULATOR
 # ==========================================
 def show_home_page():
-    # Header
-    c1, c2 = st.columns([3, 1])
-    with c1:
-        st.title("💳 AI Credit Scoring")
-        st.caption("Complete the form below to assess creditworthiness.")
-    with c2:
+    # Header Layout
+    st.title("💳 AI Credit Scoring")
+    st.caption("Complete the form below to assess creditworthiness.")
+    
+    # Logic Button (Full width row to prevent cutoff)
+    col_a, col_b = st.columns([4, 1])
+    with col_b:
         st.button("🧠 How Logic Works", on_click=go_to_explainer, type="secondary", use_container_width=True)
 
     st.markdown("---")
@@ -116,6 +129,7 @@ def show_home_page():
     input_data = {}
 
     with tab1:
+        st.markdown("#### Personal Details") # Added header for clarity
         col1, col2 = st.columns(2)
         with col1:
             age = st.slider("Age (Years)", 18, 75, 30)
@@ -139,6 +153,7 @@ def show_home_page():
             input_data["telephone_A192" if tel == "Yes" else "telephone_A191"] = 1.0
 
     with tab2:
+        st.markdown("#### Financial Status")
         col1, col2 = st.columns(2)
         with col1:
             check_map = {"No Account (Safe)": "checking_status_A14", "Negative (<0)": "checking_status_A11", "Low (0-200)": "checking_status_A12", "High (>200)": "checking_status_A13"}
@@ -156,6 +171,7 @@ def show_home_page():
             input_data[sav_map[sav]] = 1.0
 
     with tab3:
+        st.markdown("#### Assets & Living")
         col1, col2 = st.columns(2)
         with col1:
             house_map = {"Own": "housing_A152", "Rent": "housing_A151", "Free": "housing_A153"}
@@ -169,6 +185,7 @@ def show_home_page():
             input_data[prop_map[prop]] = 1.0
 
     with tab4:
+        st.markdown("#### Loan Parameters")
         col1, col2 = st.columns(2)
         with col1:
             amt = st.number_input("Credit Amount (DM)", 250, 20000, 4000)
