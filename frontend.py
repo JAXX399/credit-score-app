@@ -222,11 +222,11 @@ def show_home_page():
                 c1, c2, c3 = st.columns([1, 2, 1])
                 with c2:
                     if score >= 700:
-                        st.success(f"## Credit Score\n##:  {score}")
+                        st.success(f"## Credit Score\n:  {score}")
                     elif score >= 600:
-                        st.warning(f"## Credit Score\n##:  {score}")
+                        st.warning(f"## Credit Score\n:  {score}")
                     else:
-                        st.error(f"## Credit Score\n##: {score}")
+                        st.error(f"## Credit Score\n: {score}")
                     
                     st.progress(score/850)
                     st.caption(f"Default Probability: {prob*100:.1f}%")
