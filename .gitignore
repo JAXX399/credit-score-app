@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+.env
+
+# IDEs
+.vscode/
+.idea/
+
+# OS specific rules
+.DS_Store
+Thumbs.db
+
+# Model Artifacts (if generated locally)
+models/
+*.pkl
+
+# Streamlit
+.streamlit/secrets.toml
