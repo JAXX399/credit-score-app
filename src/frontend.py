@@ -282,15 +282,16 @@ def show_explainer_page():
     with c2:
         st.subheader("🧠 Understanding the Model")
     
-    # --- ENSEMBLE EXPLANATION ---
+    # --- XGBOOST EXPLANATION ---
     st.info("""
-    **How the "Ensemble" Model Works:**
-    Think of this AI as a **committee of 3 experts** voting on your loan:
-    1.  **The Banker (Logistic Regression):** Looks at pure math and linear trends (e.g., "High Debt = Bad").
-    2.  **The Investigator (Random Forest):** Looks for complex patterns and rules (e.g., "Young age is okay IF income is high").
-    3.  **The Auditor (Gradient Boosting):** Focuses specifically on correcting the mistakes of the other two.
+    **How the "XGBoost" Model Works:**
+    This AI uses **Extreme Gradient Boosting (XGBoost)**, a powerful technique that builds a series of decision trees to make predictions.
     
-    **Result:** The final score is the average of their votes, making it more accurate than any single method.
+    1.  **Iterative Learning:** Unlike a single guess, the model builds hundreds of small decision trees one after another.
+    2.  **Error Correction:** Each new tree specifically focuses on correcting the mistakes made by the previous trees.
+    3.  **Class Balancing:** We have configured the model to pay extra attention to "risky" applicants (who are often rare in the data) to ensure we don't miss potential defaults.
+    
+    **Result:** A highly accurate model that captures complex patterns and non-linear relationships better than traditional methods.
     """)
     # --------------------------------------
 
@@ -302,17 +303,21 @@ def show_explainer_page():
         "Attribute": [
             "Checking Status", "Duration", "Credit History", "Credit Amount", "Age",
             "Savings Account", "Employment Since", "Installment Rate", "Sex & Status",
-            "Other Debtors", "Residence Since", "Property", "Age", "Other Installments",
-            "Housing", "Existing Credits", "Job Type", "People Liable", "Telephone", "Foreign Worker"
+            "Other Debtors", "Residence Since", "Property", "Other Installments",
+            "Housing", "Existing Credits", "Job Type", "People Liable", "Telephone", "Foreign Worker", "Purpose"
         ],
         "Category": [
             "Financial", "Loan", "History", "Loan", "Demographic",
             "Financial", "Demographic", "Loan", "Demographic",
-            "History", "Demographic", "Assets", "Demographic", "Financial",
-            "Assets", "History", "Demographic", "Demographic", "Assets", "Demographic"
+            "History", "Demographic", "Assets", "Financial",
+            "Assets", "History", "Demographic", "Demographic", "Assets", "Demographic", "Loan"
         ],
-        "Importance": [
-            18, 12, 10, 9, 7, 5, 5, 4, 3, 2, 2, 4, 5, 2, 2, 1, 1, 1, 1, 1
+        # keys to match the one-hot prefixes in the dataset
+        "MatchKey": [
+            "checking_status", "duration", "credit_history", "credit_amount", "age",
+            "savings_status", "employment", "installment_rate", "personal_status",
+            "other_debtors", "residence_since", "property", "other_payment_plans",
+            "housing", "existing_credits", "job", "num_dependents", "own_telephone", "foreign_worker", "purpose"
         ],
         "Key Insight / Logic": [
             "Negative balance (A11) is the #1 risk factor. No checking (A14) is safest.",
@@ -327,23 +332,51 @@ def show_explainer_page():
             "Guarantors (A103) significantly reduce risk.",
             "Longer residence implies stability.",
             "Real Estate (A121) is the best collateral.",
-            "Older applicants are generally seen as more reliable.",
             "Owing other banks (A141) increases debt burden.",
             "Home owners (A152) are safer than renters.",
             "Having 2-3 existing credits is normal. Too many is bad.",
             "Management/Highly Skilled jobs get better scores.",
             "More dependents = Less disposable income.",
             "Owning a phone suggests stability/traceability.",
-            "Foreign workers (A201) are flagged as higher flight risk."
+            "Foreign workers (A201) are flagged as higher flight risk.",
+            "Used cars (A41) often safe, Education/Business often riskier."
         ]
     }
     
     df = pd.DataFrame(data)
+
+    # --- CALCULATE DYNAMIC IMPORTANCE ---
+    if MODEL_LOADED:
+        import numpy as np
+        # 1. Get raw importances
+        raw_importances = model.feature_importances_
+        # 2. Map one-hot encoded columns back to original features
+        df['Importance'] = 0.0
+        
+        for idx, row in df.iterrows():
+            key = row['MatchKey']
+            # Find all columns that start with this key (e.g. 'checking_status_A11', 'checking_status_A12')
+            # For numericals like 'age', it's just exact match
+            matched_indices = [i for i, col in enumerate(model_columns) if col.startswith(key)]
+            
+            if matched_indices:
+                total_importance = sum(raw_importances[i] for i in matched_indices)
+                df.at[idx, 'Importance'] = total_importance
+
+        # Normalize to 0-100 for display
+        if df['Importance'].sum() > 0:
+            df['Importance'] = (df['Importance'] / df['Importance'].sum()) * 100
+    else:
+        # Fallback if model not loaded
+        df['Importance'] = [18, 12, 10, 9, 7, 5, 5, 4, 3, 2, 2, 4, 2, 2, 1, 1, 1, 1, 1, 5]
+
+    # Sort by importance
+    df = df.sort_values(by="Importance", ascending=False)
     
     # 1. GRAPH
     fig = px.treemap(
         df, path=['Category', 'Attribute'], values='Importance',
-        title="Attribute Importance Hierarchy (Click to Zoom)", color='Category'
+        title="Attribute Importance Hierarchy (Based on Your Data)", color='Category'
     )
     st.plotly_chart(fig, use_container_width=True)
 
