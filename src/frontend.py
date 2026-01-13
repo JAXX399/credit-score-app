@@ -2,6 +2,12 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import os
+import sys
+
+# Add src to path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from src.doc_utils import parse_document, extract_attributes
+
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
@@ -136,6 +142,23 @@ with st.spinner("🤖 Initializing AI... (Training XGBoost Model)"):
 if MODEL_LOADED and accuracy:
     st.sidebar.success(f"Model Trained! 🎯 Test Accuracy: {accuracy*100:.1f}%")
 
+# --- AUTO-FILL LOGIC ---
+if 'form_data' not in st.session_state:
+    st.session_state['form_data'] = {}
+
+with st.sidebar:
+    st.header("📂 Auto-Fill")
+    uploaded_file = st.file_uploader("Upload Application (PDF/DOCX)", type=['pdf', 'docx', 'txt'])
+    if uploaded_file is not None:
+        if st.button("Read Document"):
+            text = parse_document(uploaded_file)
+            extracted = extract_attributes(text)
+            if extracted:
+                st.session_state['form_data'].update(extracted)
+                st.success("✅ Data Extracted!")
+            else:
+                st.warning("⚠️ No attributes found in document.")
+
 # --- NAVIGATION ---
 if 'current_page' not in st.session_state:
     st.session_state['current_page'] = 'home'
@@ -162,20 +185,43 @@ def show_home_page():
     tab1, tab2, tab3, tab4 = st.tabs(["👤 Personal", "💰 Financial", "🏠 Assets", "📄 Loan Details"])
     input_data = {}
 
+    # Helper to get session value or default
+    def get_val(key, default):
+        return st.session_state['form_data'].get(key, default)
+
     with tab1:
         st.markdown("#### Personal Details")
         col1, col2 = st.columns(2)
         with col1:
-            age = st.slider("Age (Years)", 18, 75, 30)
+            age = st.slider("Age (Years)", 18, 75, get_val('age', 30))
+            
             sex_map = {"Male (Single)": "personal_status_A93", "Female (Div/Mar)": "personal_status_A92", "Male (Mar/Div)": "personal_status_A94", "Male (Div/Sep)": "personal_status_A91"}
-            sex = st.selectbox("Sex & Status", list(sex_map.keys()))
-            foreign = st.radio("Foreign Worker?", ["Yes", "No"], horizontal=True)
-            deps = st.radio("Dependents", [1, 2], horizontal=True)
+            # Determine index for sex
+            default_sex = get_val('sex', "Male (Single)")
+            sex_idx = list(sex_map.keys()).index(default_sex) if default_sex in sex_map else 0
+            sex = st.selectbox("Sex & Status", list(sex_map.keys()), index=sex_idx)
+            
+            # Foreign
+            default_for = get_val('foreign', "Yes")
+            for_idx = ["Yes", "No"].index(default_for) if default_for in ["Yes", "No"] else 0
+            foreign = st.radio("Foreign Worker?", ["Yes", "No"], index=for_idx, horizontal=True)
+
+            # Dependents
+            def_dep = get_val('dependents', 1)
+            dep_idx = [1, 2].index(def_dep) if def_dep in [1, 2] else 0
+            deps = st.radio("Dependents", [1, 2], index=dep_idx, horizontal=True)
+
         with col2:
             job_map = {"Skilled": "job_A173", "Unskilled (Res)": "job_A172", "Management": "job_A174", "Unemployed": "job_A171"}
-            job = st.selectbox("Job Type", list(job_map.keys()))
+            def_job = get_val('job', "Skilled")
+            job_idx = list(job_map.keys()).index(def_job) if def_job in job_map else 0
+            job = st.selectbox("Job Type", list(job_map.keys()), index=job_idx)
+            
             emp_map = {"1-4 years": "employment_A73", ">= 7 years": "employment_A75", "4-7 years": "employment_A74", "< 1 year": "employment_A72", "Unemployed": "employment_A71"}
-            emp = st.selectbox("Employment Duration", list(emp_map.keys()))
+            def_emp = get_val('emp_duration', "1-4 years")
+            emp_idx = list(emp_map.keys()).index(def_emp) if def_emp in emp_map else 0
+            emp = st.selectbox("Employment Duration", list(emp_map.keys()), index=emp_idx)
+            
             tel = st.radio("Telephone?", ["None", "Yes"], horizontal=True)
             
             # Save
@@ -191,13 +237,20 @@ def show_home_page():
         col1, col2 = st.columns(2)
         with col1:
             check_map = {"No Account (Safe)": "checking_status_A14", "Negative (<0)": "checking_status_A11", "Low (0-200)": "checking_status_A12", "High (>200)": "checking_status_A13"}
-            check = st.selectbox("Checking Status", list(check_map.keys()))
+            def_check = get_val('check_status', "No Account (Safe)")
+            check_idx = list(check_map.keys()).index(def_check) if def_check in check_map else 0
+            check = st.selectbox("Checking Status", list(check_map.keys()), index=check_idx)
+            
             hist_map = {"Critical/Good": "credit_history_A34", "Existing Paid": "credit_history_A32", "No Credits/Paid": "credit_history_A30", "Delay": "credit_history_A33", "All Paid": "credit_history_A31"}
+            # Default history not extracted currently, keep standard default
             hist = st.selectbox("Credit History", list(hist_map.keys()))
         with col2:
             sav_map = {"Unknown/None": "savings_status_A65", "Low (<100)": "savings_status_A61", "Medium": "savings_status_A62", "High": "savings_status_A63", "Very High": "savings_status_A64"}
-            sav = st.selectbox("Savings Balance", list(sav_map.keys()))
-            exist_cr = st.slider("Existing Credits", 1, 4, 1)
+            def_sav = get_val('savings', "Unknown/None")
+            sav_idx = list(sav_map.keys()).index(def_sav) if def_sav in sav_map else 0
+            sav = st.selectbox("Savings Balance", list(sav_map.keys()), index=sav_idx)
+            
+            exist_cr = st.slider("Existing Credits", 1, 4, get_val('exist_credits', 1))
             
             input_data["existing_credits"] = exist_cr
             input_data[check_map[check]] = 1.0
@@ -209,9 +262,14 @@ def show_home_page():
         col1, col2 = st.columns(2)
         with col1:
             house_map = {"Own": "housing_A152", "Rent": "housing_A151", "Free": "housing_A153"}
-            house = st.selectbox("Housing", list(house_map.keys()))
+            def_house = get_val('housing', "Own")
+            house_idx = list(house_map.keys()).index(def_house) if def_house in house_map else 0
+            house = st.selectbox("Housing", list(house_map.keys()), index=house_idx)
+            
             prop_map = {"Real Estate": "property_A121", "Savings/Life Ins": "property_A122", "Car/Other": "property_A123", "Unknown": "property_A124"}
-            prop = st.selectbox("Property", list(prop_map.keys()))
+            def_prop = get_val('property', "Real Estate")
+            prop_idx = list(prop_map.keys()).index(def_prop) if def_prop in prop_map else 0
+            prop = st.selectbox("Property", list(prop_map.keys()), index=prop_idx)
         with col2:
             res_since = st.slider("Residence Since (Years)", 1, 4, 2)
             input_data["residence_since"] = res_since
@@ -222,12 +280,15 @@ def show_home_page():
         st.markdown("#### Loan Parameters")
         col1, col2 = st.columns(2)
         with col1:
-            amt = st.number_input("Credit Amount (DM)", 250, 20000, 4000)
-            dur = st.slider("Duration (Months)", 4, 72, 24)
+            amt = st.number_input("Credit Amount (DM)", 250, 20000, get_val('amount', 4000))
+            dur = st.slider("Duration (Months)", 4, 72, get_val('duration', 24))
             rate = st.slider("Installment Rate (%)", 1, 4, 2)
         with col2:
             pur_map = {"New Car": "purpose_A40", "Used Car": "purpose_A41", "Furniture": "purpose_A42", "Radio/TV": "purpose_A43", "Appliances": "purpose_A44", "Repairs": "purpose_A45", "Education": "purpose_A46", "Business": "purpose_A49", "Retraining": "purpose_A48", "Other": "purpose_A410"}
-            pur = st.selectbox("Purpose", list(pur_map.keys()))
+            def_pur = get_val('purpose', "New Car")
+            pur_idx = list(pur_map.keys()).index(def_pur) if def_pur in pur_map else 0
+            pur = st.selectbox("Purpose", list(pur_map.keys()), index=pur_idx)
+            
             debt_map = {"None": "other_debtors_A101", "Guarantor": "other_debtors_A103", "Co-Applicant": "other_debtors_A102"}
             debt = st.selectbox("Debtors", list(debt_map.keys()))
             inst_map = {"None": "other_payment_plans_A143", "Bank": "other_payment_plans_A141", "Stores": "other_payment_plans_A142"}
