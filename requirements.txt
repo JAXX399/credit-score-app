@@ -4,3 +4,5 @@ numpy
 scikit-learn
 plotly
 xgboost
+PyPDF2
+python-docx
